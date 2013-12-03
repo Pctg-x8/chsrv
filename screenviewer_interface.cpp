@@ -4,14 +4,12 @@ void* viewer_thread(void* ptr);
 
 screenviewer_interface::screenviewer_interface()
 {
-	message_queue.clear();
 	thread = 0;
 }
 
 void screenviewer_interface::init()
 {
 	std::cout << "[screen]initializing..." << std::endl;
-	message_queue.clear();
 	pthread_create(&thread, NULL, viewer_thread, this);
 }
 
@@ -22,6 +20,7 @@ void* viewer_thread(void* ptr)
 	struct sockaddr_in addr = {0};
 	socklen_t socklen;
 
+	_this->thread_lock();
 	sock = socket(PF_INET, SOCK_STREAM, 0);
 	sock_finder = socket(PF_INET, SOCK_DGRAM, 0);
 	addr.sin_family = AF_INET;
@@ -30,6 +29,8 @@ void* viewer_thread(void* ptr)
 	bind(sock, (struct sockaddr*)&addr, sizeof(addr));
 	bind(sock_finder, (struct sockaddr*)&addr, sizeof(addr));
 	listen(sock, 99);
+	_this->viewers.clear();
+	_this->thread_unlock();
 
 	pthread_detach(pthread_self());
 	{
@@ -61,12 +62,98 @@ void* viewer_thread(void* ptr)
 			int sock_con;
 			struct sockaddr_in addr;
 			socklen_t len = sizeof(addr);
+			struct viewer_info* vi = new struct viewer_info;
 
 			sock_con = accept(sock, (struct sockaddr*)&addr, &len);
-			std::cout << "[screen]viewer incoming from " << inet_ntoa(addr.sin_addr) << ":" << ntohs(addr.sin_port) << "." << std::endl;
+			std::cout << "[screen]viewer incoming from "
+				<< inet_ntoa(addr.sin_addr) << ":"
+				<< ntohs(addr.sin_port) << "." << std::endl;
+			
+			vi->sock = sock_con;
+			vi->addr = addr;
+			_this->thread_lock();
+			_this->viewers.push_back(vi);
+			_this->thread_unlock();
 		}
 	}
 
 	pthread_exit(0);
 	return NULL;
+}
+
+void screenviewer_interface::thread_lock()
+{
+	pthread_mutex_lock(&(this->mutex_msg));
+}
+void screenviewer_interface::thread_unlock()
+{
+	pthread_mutex_unlock(&(this->mutex_msg));
+}
+
+void screenviewer_interface::dispatch_initializer(character_interface& c, character_interface& h, map& m)
+{
+	thread_lock();
+	// dispatch process
+	
+	struct mapdata_header hdr = {'M', 'A', 'P', ' ', m.get_width(), m.get_height(),
+		m.get_init_cool().x, m.get_init_cool().y, m.get_init_hot().x, m.get_init_hot().y,
+		m.get_turns(), c.get_length(), h.get_length()};
+	std::vector<struct viewer_info*> receive_queue;
+	
+	int packet_length = sizeof(hdr) + c.get_length() + h.get_length() + hdr.mw * hdr.mh;
+	char* packet = (char*)malloc(packet_length+16);
+	memcpy(packet, (char*)&hdr, sizeof(hdr));
+	memcpy(packet + sizeof(hdr), c.get_name(), c.get_length());
+	memcpy(packet + sizeof(hdr) + c.get_length(), h.get_name(), h.get_length());
+	memcpy(packet + sizeof(hdr) + c.get_length() + h.get_length(), m.get_data(), hdr.mw * hdr.mh);
+	
+	std::vector<struct viewer_info*> viewer_left;
+	for(std::vector<struct viewer_info*>::iterator it = this->viewers.begin();
+		it != this->viewers.end(); it++)
+	{
+		if((*it)->sock == 0)
+		{
+			delete *it;
+			continue;
+		}
+		send((*it)->sock, packet, packet_length, 0);
+		receive_queue.push_back(*it);
+		viewer_left.push_back(*it);
+	}
+	this->viewers = viewer_left;
+	while(receive_queue.size())
+	{
+		std::vector<struct viewer_info*> rq_next;
+		fd_set fd;
+
+		FD_ZERO(&fd);
+		for(std::vector<struct viewer_info*>::iterator it = receive_queue.begin();
+			it != receive_queue.end(); it++)
+		{
+			FD_SET((*it)->sock, &fd);
+		}
+		select(0, &fd, 0, 0, NULL);
+		for(std::vector<struct viewer_info*>::iterator it = receive_queue.begin();
+			it != receive_queue.end(); it++)
+		{
+			if(FD_ISSET((*it)->sock, &fd))
+			{
+				char data[256];
+				if(recv((*it)->sock, data, 256, 0) == 0)
+				{
+					std::cout << "[screen]viewer disconnected." << std::endl;
+					close((*it)->sock);
+					(*it)->sock = 0;
+				}
+			}
+			else
+			{
+				rq_next.push_back(*it);
+			}
+		}
+		receive_queue = rq_next;
+	}
+
+	free(packet);
+	thread_unlock();
 }

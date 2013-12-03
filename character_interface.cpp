@@ -25,13 +25,14 @@ void character_interface::init()
 void character_interface::check_entry()
 {
 	fd_set fd;
+	struct timeval tv = {0, 1};
 
 	if(sock_receptor == 0) return;
 
 	FD_ZERO(&fd);
 	FD_SET(sock_receptor, &fd);
 	if(sock_connected) FD_SET(sock_connected, &fd);
-	select(0, &fd, NULL, NULL, NULL);
+	select(0, &fd, NULL, NULL, &tv);
 	if(FD_ISSET(sock_receptor, &fd))
 	{
 		socklen_t len = sizeof(struct sockaddr_in);
@@ -59,4 +60,12 @@ void character_interface::check_entry()
 bool character_interface::is_connected()
 {
 	return sock_connected != 0;
+}
+int character_interface::get_length()
+{
+	return strlen(team_name);
+}
+char* character_interface::get_name()
+{
+	return team_name;
 }

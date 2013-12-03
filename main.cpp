@@ -11,8 +11,10 @@ int main(int argc, char** argv)
 		return 1;
 	}
 
-	gm.init();
+	std::cout << "Note: heap limit: " << sbrk(0) << std::endl;
 
+	gm.init(argv[1]);
 	gm.entry();
+	gm.loop();
 	return 0;
 }

@@ -6,6 +6,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <string>
+#include <string.h>
 
 class character_interface
 {
@@ -14,6 +15,9 @@ public:
 	void init();
 	void check_entry();
 	bool is_connected();
+
+	int get_length();
+	char* get_name();
 private:
 	std::string char_name;
 	unsigned short port;

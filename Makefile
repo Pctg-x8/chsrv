@@ -8,7 +8,7 @@ all:
 
 run:
 	make all
-	bin/chsrv test.map
+	bin/chsrv bin/sample02_k.map
 
 bin/chsrv: $(Objects)
 	g++ -o bin/chsrv -pthread $(Objects)
