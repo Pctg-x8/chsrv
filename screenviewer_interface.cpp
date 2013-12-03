@@ -157,3 +157,69 @@ void screenviewer_interface::dispatch_initializer(character_interface& c, charac
 	free(packet);
 	thread_unlock();
 }
+void screenviewer_interface::dispatch_update(character_interface& c, character_interface& h, map& m)
+{
+	thread_lock();
+	// dispatch process
+	
+	struct mapdata_header_with_methods hdr = {'M', 'H', 'W', 'M', 
+		c.get_pos().x, c.get_pos().y, h.get_pos().x, h.get_pos().y,
+		c.get_method(), h.get_method(), c.get_direction(), h.get_direction(), 
+		c.get_items(), h.get_items(), m.get_turns()};
+	std::vector<struct viewer_info*> receive_queue;
+	
+	int packet_length = sizeof(hdr) + m.get_width() * m.get_height();
+	char* packet = (char*)malloc(packet_length+16);
+	memcpy(packet, (char*)&hdr, sizeof(hdr));
+	memcpy(packet + sizeof(hdr), m.get_data(), m.get_width() * m.get_height());
+	
+	std::vector<struct viewer_info*> viewer_left;
+	for(std::vector<struct viewer_info*>::iterator it = this->viewers.begin();
+		it != this->viewers.end(); it++)
+	{
+		if((*it)->sock == 0)
+		{
+			delete *it;
+			continue;
+		}
+		send((*it)->sock, packet, packet_length, 0);
+		receive_queue.push_back(*it);
+		viewer_left.push_back(*it);
+	}
+	this->viewers = viewer_left;
+	while(receive_queue.size())
+	{
+		std::vector<struct viewer_info*> rq_next;
+		fd_set fd;
+
+		FD_ZERO(&fd);
+		for(std::vector<struct viewer_info*>::iterator it = receive_queue.begin();
+			it != receive_queue.end(); it++)
+		{
+			FD_SET((*it)->sock, &fd);
+		}
+		select(0, &fd, 0, 0, NULL);
+		for(std::vector<struct viewer_info*>::iterator it = receive_queue.begin();
+			it != receive_queue.end(); it++)
+		{
+			if(FD_ISSET((*it)->sock, &fd))
+			{
+				char data[256];
+				if(recv((*it)->sock, data, 256, 0) == 0)
+				{
+					std::cout << "[screen]viewer disconnected." << std::endl;
+					close((*it)->sock);
+					(*it)->sock = 0;
+				}
+			}
+			else
+			{
+				rq_next.push_back(*it);
+			}
+		}
+		receive_queue = rq_next;
+	}
+
+	free(packet);
+	thread_unlock();
+}

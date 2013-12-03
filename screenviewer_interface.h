@@ -28,7 +28,7 @@ public:
 
 	void init();
 	void dispatch_initializer(character_interface& c, character_interface& h, map& m);
-	void dispatch_update();
+	void dispatch_update(character_interface& c, character_interface& h, map& m);
 
 	void thread_lock();
 	void thread_unlock();

@@ -34,6 +34,10 @@ void game::loop()
 	viewer.dispatch_initializer(cool, hot, m_inst);
 	while(true)
 	{
-
+		cool.enter();
+		cool.get_ready();
+		viewer.dispatch_update(cool, hot, m_inst);
+		cool.method();
+		cool.leave();
 	}
 }

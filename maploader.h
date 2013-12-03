@@ -3,11 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string>
-
-struct point
-{
-	int x, y;
-};
+#include "point.h"
 
 class maploader
 {

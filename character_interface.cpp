@@ -21,7 +21,6 @@ void character_interface::init()
 	listen(sock_receptor, 1);
 	sock_connected = 0;
 }
-
 void character_interface::check_entry()
 {
 	fd_set fd;
@@ -61,6 +60,14 @@ bool character_interface::is_connected()
 {
 	return sock_connected != 0;
 }
+void character_interface::prepare(struct point& init_pos)
+{
+	method = undefined;
+	dir = unknown;
+	items = 0;
+	pos.x = init_pos.x;
+	pos.y = init_pos.y;
+}
 int character_interface::get_length()
 {
 	return strlen(team_name);
@@ -68,4 +75,20 @@ int character_interface::get_length()
 char* character_interface::get_name()
 {
 	return team_name;
+}
+struct point& character_interface::get_pos()
+{
+	return pos;
+}
+char character_interface::get_method()
+{
+	return method;
+}
+char character_interface::get_direction()
+{
+	return dir;
+}
+unsigned int character_interface::get_items()
+{
+	return items;
 }
