@@ -19,6 +19,9 @@ public:
 	struct point& get_init_hot();
 	int get_turns();
 	char* get_data();
+	char get_pattern(int x, int y);
+	void set_pattern(int x, int y, char pat);
+	void decrease_turns();
 private:
 	char* mapdata;
 	int width, height, turns;

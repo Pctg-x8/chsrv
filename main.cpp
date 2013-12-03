@@ -16,5 +16,8 @@ int main(int argc, char** argv)
 	gm.init(argv[1]);
 	gm.entry();
 	gm.loop();
+
+	std::cout << "exiting..." << std::endl;
+
 	return 0;
 }

@@ -26,8 +26,16 @@ void* viewer_thread(void* ptr)
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(30000);
 	addr.sin_addr.s_addr = INADDR_ANY;
-	bind(sock, (struct sockaddr*)&addr, sizeof(addr));
-	bind(sock_finder, (struct sockaddr*)&addr, sizeof(addr));
+	if(bind(sock, (struct sockaddr*)&addr, sizeof(addr)) < 0)
+	{
+		perror("bind");
+		exit(11);
+	}
+	if(bind(sock_finder, (struct sockaddr*)&addr, sizeof(addr)) < 0)
+	{
+		perror("bind");
+		exit(11);
+	}
 	listen(sock, 99);
 	_this->viewers.clear();
 	_this->thread_unlock();
@@ -120,9 +128,11 @@ void screenviewer_interface::dispatch_initializer(character_interface& c, charac
 		receive_queue.push_back(*it);
 		viewer_left.push_back(*it);
 	}
+	std::cout << "[screen]send initializer packet to " << viewer_left.size() << " clients." << std::endl;
 	this->viewers = viewer_left;
 	while(receive_queue.size())
 	{
+		struct timeval tv = {0, 1};
 		std::vector<struct viewer_info*> rq_next;
 		fd_set fd;
 
@@ -132,18 +142,27 @@ void screenviewer_interface::dispatch_initializer(character_interface& c, charac
 		{
 			FD_SET((*it)->sock, &fd);
 		}
-		select(0, &fd, 0, 0, NULL);
+		if(select(0, &fd, NULL, NULL, &tv) < 0)
+		{
+			std::cout << "die from select at screenviewer_interface::dispatch_initializer" << std::endl;
+			exit(10);
+		}
 		for(std::vector<struct viewer_info*>::iterator it = receive_queue.begin();
 			it != receive_queue.end(); it++)
 		{
 			if(FD_ISSET((*it)->sock, &fd))
 			{
 				char data[256];
-				if(recv((*it)->sock, data, 256, 0) == 0)
+				if(recv((*it)->sock, data, 256, 0) <= 0)
 				{
 					std::cout << "[screen]viewer disconnected." << std::endl;
 					close((*it)->sock);
 					(*it)->sock = 0;
+				}
+				else
+				{
+					std::cout << "[screen]received ok. from "
+						<< inet_ntoa((*it)->addr.sin_addr) << ":" << ntohs((*it)->addr.sin_port) << std::endl;
 				}
 			}
 			else
@@ -186,9 +205,12 @@ void screenviewer_interface::dispatch_update(character_interface& c, character_i
 		receive_queue.push_back(*it);
 		viewer_left.push_back(*it);
 	}
+	std::cout << "[screen]send update packet. packet size=" << packet_length
+		<< "/map size=(" << m.get_width() << ", " << m.get_height() << ")" << std::endl;
 	this->viewers = viewer_left;
 	while(receive_queue.size())
 	{
+		struct timeval tv = {0, 1};
 		std::vector<struct viewer_info*> rq_next;
 		fd_set fd;
 
@@ -198,18 +220,23 @@ void screenviewer_interface::dispatch_update(character_interface& c, character_i
 		{
 			FD_SET((*it)->sock, &fd);
 		}
-		select(0, &fd, 0, 0, NULL);
+		select(0, &fd, 0, 0, &tv);
 		for(std::vector<struct viewer_info*>::iterator it = receive_queue.begin();
 			it != receive_queue.end(); it++)
 		{
 			if(FD_ISSET((*it)->sock, &fd))
 			{
 				char data[256];
-				if(recv((*it)->sock, data, 256, 0) == 0)
+				if(recv((*it)->sock, data, 256, 0) <= 0)
 				{
 					std::cout << "[screen]viewer disconnected." << std::endl;
 					close((*it)->sock);
 					(*it)->sock = 0;
+				}
+				else
+				{
+					std::cout << "[screen]received ok. from "
+						<< inet_ntoa((*it)->addr.sin_addr) << ":" << ntohs((*it)->addr.sin_port) << std::endl;
 				}
 			}
 			else
@@ -222,4 +249,29 @@ void screenviewer_interface::dispatch_update(character_interface& c, character_i
 
 	free(packet);
 	thread_unlock();
+}
+void screenviewer_interface::dispatch_result(char winner_head, char reason)
+{
+	thread_lock();
+	// dispatch process
+	
+	struct result_header hdr = {'R', 'S', 'L', 'T', winner_head, reason};
+	
+	int packet_length = sizeof(hdr);
+	char* packet = (char*)malloc(packet_length+16);
+	memcpy(packet, (char*)&hdr, sizeof(hdr));
+	
+	for(std::vector<struct viewer_info*>::iterator it = this->viewers.begin();
+		it != this->viewers.end(); it++)
+	{
+		if((*it)->sock == 0)
+		{
+			delete *it;
+			continue;
+		}
+		send((*it)->sock, packet, packet_length, 0);
+		close((*it)->sock);
+		delete *it;
+	}
+	this->viewers.clear();
 }

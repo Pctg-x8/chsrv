@@ -29,6 +29,7 @@ public:
 	void init();
 	void dispatch_initializer(character_interface& c, character_interface& h, map& m);
 	void dispatch_update(character_interface& c, character_interface& h, map& m);
+	void dispatch_result(char winner_head, char reason);
 
 	void thread_lock();
 	void thread_unlock();

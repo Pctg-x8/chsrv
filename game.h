@@ -6,6 +6,7 @@
 #include "screenviewer_interface.h"
 #include "map.h"
 #include "maploader_factory.h"
+#include "judgementor.h"
 
 class game
 {

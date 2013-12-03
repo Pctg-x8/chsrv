@@ -9,6 +9,7 @@
 #include <string.h>
 #include "chsrv_comapi.h"
 #include "point.h"
+#include "map.h"
 
 class character_interface
 {
@@ -18,6 +19,11 @@ public:
 	void check_entry();
 	bool is_connected();
 	void prepare(struct point& init_pos);
+
+	bool enter();
+	bool get_ready(map& m_inst, struct point& enemy_pos, bool is_ended = false);
+	bool process_method(map& m_inst, struct point& enemy_pos, bool is_ended = false);
+	bool leave();
 
 	int get_length();
 	char* get_name();

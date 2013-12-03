@@ -37,3 +37,15 @@ struct point& map::get_init_cool(){ return cool; }
 struct point& map::get_init_hot(){ return hot; }
 int map::get_turns(){ return turns; }
 char* map::get_data(){ return mapdata; }
+void map::decrease_turns(){ turns--; }
+
+char map::get_pattern(int x, int y)
+{
+	if(x < 0 || y < 0 || x >= width || y >= height) return 2;
+	return mapdata[x + y * width];
+}
+void map::set_pattern(int x, int y, char pat)
+{
+	if(x < 0 || y < 0 || x >= width || y >= height) return;
+	mapdata[x + y * width] = pat;
+}
