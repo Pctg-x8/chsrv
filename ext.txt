@@ -1,0 +1,6 @@
+
+{
+	Memcheck:Cond
+	obj:/lib*/ld-2.5*.so
+	obj:/usr/lib/libpthread*
+}
